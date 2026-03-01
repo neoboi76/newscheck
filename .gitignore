@@ -1,0 +1,72 @@
+# ══════════════════════════════════════════════════════════════
+#  NewsCheck Backend — .gitignore
+# ══════════════════════════════════════════════════════════════
+
+# ── Secrets & Environment ──────────────────────────────────────
+.env
+*.env
+.env.local
+.env.production
+.env.staging
+
+# ── Maven build output ─────────────────────────────────────────
+**/target/
+**/!.mvn/wrapper/maven-wrapper.jar
+**/.mvn/wrapper/maven-wrapper.properties
+
+# ── Java compiled files ────────────────────────────────────────
+**/*.class
+**/*.jar
+**/*.war
+**/*.ear
+**/*.nar
+
+# ── Logs ───────────────────────────────────────────────────────
+**/*.log
+**/logs/
+**/log/
+
+# ── IDEs ───────────────────────────────────────────────────────
+# IntelliJ IDEA
+.idea/
+**/*.iml
+**/*.iws
+**/*.ipr
+out/
+
+# VS Code
+.vscode/
+
+# Eclipse
+**/.classpath
+**/.project
+**/.settings/
+**/bin/
+
+# NetBeans
+**/nbproject/private/
+**/nbbuild/
+**/dist/
+**/nbdist/
+
+# ── OS files ───────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Docker ─────────────────────────────────────────────────────
+# Keep docker-compose.yml but ignore overrides with real secrets
+docker-compose.override.yml
+docker-compose.prod.yml
+
+# ── Database ───────────────────────────────────────────────────
+*.sql.bak
+pgdata/
+postgres_data/
+
+# ── Temp / test artifacts ──────────────────────────────────────
+**/tmp/
+**/temp/
+**/*.tmp
+**/*.bak
+**/*.swp
