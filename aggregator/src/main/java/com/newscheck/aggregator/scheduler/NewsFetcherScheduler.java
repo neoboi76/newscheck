@@ -2,14 +2,12 @@ package com.newscheck.aggregator.scheduler;
 
 import com.newscheck.aggregator.dto.ArticleEvent;
 import com.newscheck.aggregator.service.ArticleService;
-import com.newscheck.aggregator.service.GuardianApiClient;
-import com.newscheck.aggregator.service.NewsApiClient;
+import com.newscheck.aggregator.service.NewsSourceClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -18,52 +16,44 @@ import java.util.concurrent.CompletableFuture;
  *
  * Schedule: every 15 minutes (configurable via aggregator.fetch.cron).
  *
- * Flow:
- *   NewsApiClient ──┐  (parallel)
- *                   ├──▶ ArticleService.ingest() ──▶ DB + Kafka
- *   GuardianClient──┘  (parallel)
+ * Depends on the {@link NewsSourceClient} interface (OCP / DIP):
+ * all registered implementations are auto-injected by Spring.
+ * Adding a new source only requires creating a new @Service that
+ * implements NewsSourceClient — this scheduler needs zero changes.
  *
- * Both sources and their internal category fetches run in parallel.
- * If one source fails entirely, the other still contributes articles.
+ * Flow:
+ *   NewsSourceClient[0] ──┐  (parallel)
+ *   NewsSourceClient[1] ──┤
+ *   NewsSourceClient[N] ──┘──▶ ArticleService.ingest() ──▶ DB + Kafka
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class NewsFetcherScheduler {
 
-    private final NewsApiClient    newsApiClient;
-    private final GuardianApiClient guardianApiClient;
-    private final ArticleService   articleService;
+    private final List<NewsSourceClient> newsSourceClients;
+    private final ArticleService         articleService;
 
     @Scheduled(cron = "${aggregator.fetch.cron:0 0/15 * * * *}")
     public void fetchAndPublish() {
-        log.info("=== News fetch cycle starting ===");
+        log.info("=== News fetch cycle starting ({} sources) ===", newsSourceClients.size());
 
-        // Fetch from both sources in parallel
-        CompletableFuture<List<ArticleEvent>> newsApiFuture = CompletableFuture
-                .supplyAsync(newsApiClient::fetchAllCategories)
-                .exceptionally(ex -> {
-                    log.error("NewsAPI fetch failed: {}", ex.getMessage(), ex);
-                    return List.of();
-                });
+        // Fetch from all sources in parallel
+        List<CompletableFuture<List<ArticleEvent>>> futures = newsSourceClients.stream()
+                .map(client -> CompletableFuture
+                        .supplyAsync(client::fetchAll)
+                        .exceptionally(ex -> {
+                            log.error("{} fetch failed: {}", client.getSourceName(), ex.getMessage(), ex);
+                            return List.of();
+                        }))
+                .toList();
 
-        CompletableFuture<List<ArticleEvent>> guardianFuture = CompletableFuture
-                .supplyAsync(guardianApiClient::fetchAllSections)
-                .exceptionally(ex -> {
-                    log.error("Guardian fetch failed: {}", ex.getMessage(), ex);
-                    return List.of();
-                });
-
-        // Wait for both to complete
-        List<ArticleEvent> newsApiArticles = newsApiFuture.join();
-        List<ArticleEvent> guardianArticles = guardianFuture.join();
-
-        log.info("NewsAPI fetched: {} articles", newsApiArticles.size());
-        log.info("Guardian fetched: {} articles", guardianArticles.size());
-
-        List<ArticleEvent> allEvents = new ArrayList<>(newsApiArticles.size() + guardianArticles.size());
-        allEvents.addAll(newsApiArticles);
-        allEvents.addAll(guardianArticles);
+        // Collect results
+        List<ArticleEvent> allEvents = futures.stream()
+                .map(CompletableFuture::join)
+                .peek(articles -> log.info("Source fetched: {} articles", articles.size()))
+                .flatMap(List::stream)
+                .toList();
 
         // Ingest (deduplicate + persist + publish to Kafka)
         int ingested = articleService.ingest(allEvents);

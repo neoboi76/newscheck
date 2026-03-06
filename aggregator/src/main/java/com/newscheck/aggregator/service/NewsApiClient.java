@@ -27,7 +27,7 @@ import java.util.concurrent.ExecutorService;
  */
 @Service
 @Slf4j
-public class NewsApiClient {
+public class NewsApiClient implements NewsSourceClient {
 
     private final RestTemplate restTemplate;
     private final ExecutorService fetchExecutor;
@@ -47,6 +47,16 @@ public class NewsApiClient {
                          @Qualifier("fetchExecutor") ExecutorService fetchExecutor) {
         this.restTemplate = restTemplate;
         this.fetchExecutor = fetchExecutor;
+    }
+
+    @Override
+    public String getSourceName() {
+        return "NewsAPI";
+    }
+
+    @Override
+    public List<ArticleEvent> fetchAll() {
+        return fetchAllCategories();
     }
 
     /**

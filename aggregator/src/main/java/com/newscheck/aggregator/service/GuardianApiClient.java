@@ -34,7 +34,7 @@ import java.util.concurrent.ExecutorService;
  */
 @Service
 @Slf4j
-public class GuardianApiClient {
+public class GuardianApiClient implements NewsSourceClient {
 
     private final RestTemplate restTemplate;
     private final ExecutorService fetchExecutor;
@@ -60,6 +60,16 @@ public class GuardianApiClient {
                              @Qualifier("fetchExecutor") ExecutorService fetchExecutor) {
         this.restTemplate = restTemplate;
         this.fetchExecutor = fetchExecutor;
+    }
+
+    @Override
+    public String getSourceName() {
+        return "The Guardian";
+    }
+
+    @Override
+    public List<ArticleEvent> fetchAll() {
+        return fetchAllSections();
     }
 
     /**
