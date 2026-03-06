@@ -118,13 +118,16 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
+    volumes:
+      - ./firebase-service-account.json:/app/firebase-service-account.json:ro
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/newscheck
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: admin
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       JWT_SECRET: ${JWT_SECRET:-changeme_use_a_real_secret_in_production}
-      FCM_SERVER_KEY: ${FCM_SERVER_KEY}
+      FCM_SERVICE_ACCOUNT_PATH: /app/firebase-service-account.json
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID}
     networks:
       - newscheck-network
 
