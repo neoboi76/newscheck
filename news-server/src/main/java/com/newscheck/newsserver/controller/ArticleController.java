@@ -1,9 +1,8 @@
 package com.newscheck.newsserver.controller;
 
 import com.newscheck.newsserver.dto.ArticleResponse;
-import com.newscheck.newsserver.entity.User;
+import com.newscheck.newsserver.security.AuthenticatedUserResolver;
 import com.newscheck.newsserver.service.ArticleService;
-import com.newscheck.newsserver.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -37,8 +36,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ArticleController {
 
-    private final ArticleService articleService;
-    private final UserService    userService;
+    private final ArticleService           articleService;
+    private final AuthenticatedUserResolver userResolver;
 
     /** Latest articles across all categories (for unauthenticated / explore view). */
     @GetMapping
@@ -56,22 +55,20 @@ public class ArticleController {
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "20") int size) {
 
-        if (principal == null) {
+        Long userId = userResolver.resolveId(principal);
+        if (userId == null) {
             return ResponseEntity.status(401).build();
         }
-        User user = userService.getByUsername(principal.getUsername());
         return ResponseEntity.ok(
-                articleService.getFeed(user.getId(), page, size));
+                articleService.getFeed(userId, page, size));
     }
 
     /** Breaking news (top 10). */
     @GetMapping("/breaking")
     public ResponseEntity<List<ArticleResponse>> getBreaking(
             @AuthenticationPrincipal UserDetails principal) {
-        Long userId = principal != null
-                ? userService.getByUsername(principal.getUsername()).getId()
-                : null;
-        return ResponseEntity.ok(articleService.getBreakingNews(userId));
+        return ResponseEntity.ok(
+                articleService.getBreakingNews(userResolver.resolveId(principal)));
     }
 
     /** Articles by category. */
@@ -81,12 +78,8 @@ public class ArticleController {
             @AuthenticationPrincipal UserDetails principal,
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "20") int size) {
-
-        Long userId = principal != null
-                ? userService.getByUsername(principal.getUsername()).getId()
-                : null;
         return ResponseEntity.ok(
-                articleService.getByCategory(category, userId, page, size));
+                articleService.getByCategory(category, userResolver.resolveId(principal), page, size));
     }
 
     /** Full-text search. */
@@ -96,11 +89,8 @@ public class ArticleController {
             @AuthenticationPrincipal UserDetails principal,
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "20") int size) {
-
-        Long userId = principal != null
-                ? userService.getByUsername(principal.getUsername()).getId()
-                : null;
-        return ResponseEntity.ok(articleService.search(q, userId, page, size));
+        return ResponseEntity.ok(
+                articleService.search(q, userResolver.resolveId(principal), page, size));
     }
 
     /** Single article detail (includes full content). */
@@ -108,11 +98,8 @@ public class ArticleController {
     public ResponseEntity<ArticleResponse> getById(
             @PathVariable Long id,
             @AuthenticationPrincipal UserDetails principal) {
-
-        Long userId = principal != null
-                ? userService.getByUsername(principal.getUsername()).getId()
-                : null;
-        return ResponseEntity.ok(articleService.getById(id, userId));
+        return ResponseEntity.ok(
+                articleService.getById(id, userResolver.resolveId(principal)));
     }
 
     /** Mark article as read (requires auth). */
@@ -121,8 +108,8 @@ public class ArticleController {
             @PathVariable Long id,
             @AuthenticationPrincipal UserDetails principal) {
 
-        User user = userService.getByUsername(principal.getUsername());
-        articleService.markRead(user.getId(), id);
+        Long userId = userResolver.resolveId(principal);
+        articleService.markRead(userId, id);
         return ResponseEntity.ok(Map.of("status", "marked as read"));
     }
 }
