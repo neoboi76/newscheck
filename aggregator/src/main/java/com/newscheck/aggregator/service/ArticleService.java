@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * Core aggregation logic:
@@ -43,7 +44,8 @@ public class ArticleService {
 
     /**
      * Processes a batch of events:
-     *   - skips duplicates already in the DB
+     *   - skips entries with blank externalId
+     *   - batch-deduplicates against DB (1 query instead of N)
      *   - persists new articles
      *   - publishes new articles to Kafka
      *
@@ -51,20 +53,29 @@ public class ArticleService {
      */
     @Transactional
     public int ingest(List<ArticleEvent> events) {
-        int newCount = 0;
-        for (ArticleEvent event : events) {
-            if (event.getExternalId() == null || event.getExternalId().isBlank()) continue;
+        // 1. Filter out events with blank externalId
+        List<ArticleEvent> valid = events.stream()
+                .filter(e -> e.getExternalId() != null && !e.getExternalId().isBlank())
+                .toList();
 
-            if (articleRepository.existsByExternalId(event.getExternalId())) {
+        if (valid.isEmpty()) return 0;
+
+        // 2. Batch dedup: one query to find all existing externalIds
+        List<String> allExternalIds = valid.stream()
+                .map(ArticleEvent::getExternalId)
+                .toList();
+        Set<String> existingIds = articleRepository.findExistingExternalIds(allExternalIds);
+
+        // 3. Persist + publish only new articles
+        int newCount = 0;
+        for (ArticleEvent event : valid) {
+            if (existingIds.contains(event.getExternalId())) {
                 log.debug("Duplicate – skipping: {}", event.getExternalId());
                 continue;
             }
 
-            // 1. Persist
             Article saved = articleRepository.save(toEntity(event));
             event.setArticleId(saved.getId());
-
-            // 2. Publish to Kafka (async, fire-and-forget with logging in producer)
             producer.publish(event);
             newCount++;
         }
