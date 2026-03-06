@@ -2,52 +2,40 @@ package com.newscheck.aggregator.service;
 
 import com.newscheck.aggregator.dto.ArticleEvent;
 import com.newscheck.aggregator.entity.Article;
-import com.newscheck.aggregator.kafka.ArticleEventProducer;
 import com.newscheck.aggregator.repository.ArticleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 /**
- * Core aggregation logic:
- *   1. Receives raw ArticleEvents from API clients.
- *   2. Deduplicates against the DB (by externalId / URL).
- *   3. Persists new articles.
- *   4. Publishes new articles to Kafka so the News-Server can consume them.
+ * Core aggregation logic: deduplication and persistence (SRP).
  *
- * Why Kafka here?
- * ──────────────────────────────────────────────────────────────────────────
- * Without Kafka the News-Server would have to poll the DB or this service's
- * REST API continuously to detect new articles – wasting resources and
- * introducing polling latency.
+ * Responsibilities (single reason to change):
+ *   1. Validates and deduplicates incoming ArticleEvents against the DB.
+ *   2. Persists new articles.
  *
- * With Kafka:
- *   • The Aggregator publishes once when an article is new.
- *   • The News-Server (and any future consumer) receives the event
- *     immediately and exactly once (idempotent producer + consumer groups).
- *   • Multiple News-Server instances can consume the same topics in
- *     parallel using a shared consumer-group without duplicates.
- *   • If the News-Server is temporarily down it automatically catches up
- *     when it restarts (Kafka retains messages for 24 h by default).
+ * Kafka publishing is delegated to {@link ArticlePublisher} so this
+ * class has no dependency on messaging infrastructure.
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ArticleService {
 
-    private final ArticleRepository     articleRepository;
-    private final ArticleEventProducer  producer;
+    private final ArticleRepository articleRepository;
+    private final ArticlePublisher  articlePublisher;
 
     /**
      * Processes a batch of events:
      *   - skips entries with blank externalId
      *   - batch-deduplicates against DB (1 query instead of N)
      *   - persists new articles
-     *   - publishes new articles to Kafka
+     *   - delegates Kafka publishing to ArticlePublisher
      *
      * @return number of new articles ingested
      */
@@ -66,8 +54,8 @@ public class ArticleService {
                 .toList();
         Set<String> existingIds = articleRepository.findExistingExternalIds(allExternalIds);
 
-        // 3. Persist + publish only new articles
-        int newCount = 0;
+        // 3. Persist only new articles
+        List<ArticleEvent> newEvents = new ArrayList<>();
         for (ArticleEvent event : valid) {
             if (existingIds.contains(event.getExternalId())) {
                 log.debug("Duplicate – skipping: {}", event.getExternalId());
@@ -76,11 +64,16 @@ public class ArticleService {
 
             Article saved = articleRepository.save(toEntity(event));
             event.setArticleId(saved.getId());
-            producer.publish(event);
-            newCount++;
+            newEvents.add(event);
         }
-        log.info("Ingested {}/{} articles (duplicates skipped)", newCount, events.size());
-        return newCount;
+
+        // 4. Publish all new articles to Kafka (delegated to ArticlePublisher)
+        if (!newEvents.isEmpty()) {
+            articlePublisher.publishAll(newEvents);
+        }
+
+        log.info("Ingested {}/{} articles (duplicates skipped)", newEvents.size(), events.size());
+        return newEvents.size();
     }
 
     private Article toEntity(ArticleEvent e) {
