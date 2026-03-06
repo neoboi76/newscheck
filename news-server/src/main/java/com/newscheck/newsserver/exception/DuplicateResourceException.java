@@ -1,0 +1,21 @@
+package com.newscheck.newsserver.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+/**
+ * Thrown when attempting to create a resource that already exists.
+ * Mapped to HTTP 409 Conflict by GlobalExceptionHandler.
+ */
+@ResponseStatus(HttpStatus.CONFLICT)
+public class DuplicateResourceException extends RuntimeException {
+
+    public DuplicateResourceException(String message) {
+        super(message);
+    }
+
+    public DuplicateResourceException(String resource, Object identifier) {
+        super(resource + " already exists: " + identifier);
+    }
+}
+

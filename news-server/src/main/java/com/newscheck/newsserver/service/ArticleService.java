@@ -3,6 +3,7 @@ package com.newscheck.newsserver.service;
 import com.newscheck.newsserver.dto.ArticleResponse;
 import com.newscheck.newsserver.entity.Article;
 import com.newscheck.newsserver.entity.ReadArticle;
+import com.newscheck.newsserver.exception.ResourceNotFoundException;
 import com.newscheck.newsserver.repository.ArticleRepository;
 import com.newscheck.newsserver.repository.ReadArticleRepository;
 import com.newscheck.newsserver.repository.SubscriptionRepository;
@@ -77,7 +78,7 @@ public class ArticleService {
     @Transactional(readOnly = true)
     public ArticleResponse getById(Long id, Long userId) {
         Article article = articleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Article not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Article", id));
         return toResponse(article, userId);
     }
 

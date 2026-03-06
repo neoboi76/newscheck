@@ -2,6 +2,8 @@ package com.newscheck.newsserver.service;
 
 import com.newscheck.newsserver.entity.Subscription;
 import com.newscheck.newsserver.entity.User;
+import com.newscheck.newsserver.exception.DuplicateResourceException;
+import com.newscheck.newsserver.exception.ResourceNotFoundException;
 import com.newscheck.newsserver.repository.SubscriptionRepository;
 import com.newscheck.newsserver.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,9 +24,9 @@ public class UserService {
     @Transactional
     public User register(String username, String email, String rawPassword) {
         if (userRepository.existsByUsername(username))
-            throw new IllegalArgumentException("Username already taken: " + username);
+            throw new DuplicateResourceException("Username", username);
         if (userRepository.existsByEmail(email))
-            throw new IllegalArgumentException("Email already registered: " + email);
+            throw new DuplicateResourceException("Email", email);
 
         User user = User.builder()
                 .username(username)
@@ -37,13 +39,13 @@ public class UserService {
     @Transactional(readOnly = true)
     public User getByUsername(String username) {
         return userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found: " + username));
+                .orElseThrow(() -> new ResourceNotFoundException("User", username));
     }
 
     @Transactional
     public void updateFcmToken(Long userId, String fcmToken) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId));
         user.setFcmToken(fcmToken);
         userRepository.save(user);
     }
@@ -51,10 +53,10 @@ public class UserService {
     @Transactional
     public Subscription subscribe(Long userId, String category) {
         if (subscriptionRepository.existsByUserIdAndCategory(userId, category))
-            throw new IllegalArgumentException("Already subscribed to: " + category);
+            throw new DuplicateResourceException("Subscription", category);
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId));
 
         return subscriptionRepository.save(
                 Subscription.builder().user(user).category(category).build());
