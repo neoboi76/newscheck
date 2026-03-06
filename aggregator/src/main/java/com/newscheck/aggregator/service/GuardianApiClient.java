@@ -4,6 +4,7 @@ import com.newscheck.aggregator.dto.ArticleEvent;
 import com.newscheck.aggregator.entity.NewsCategory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -14,6 +15,8 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Fetches articles from The Guardian Open Platform API.
@@ -30,11 +33,11 @@ import java.util.Map;
  *   world       → general
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class GuardianApiClient {
 
     private final RestTemplate restTemplate;
+    private final ExecutorService fetchExecutor;
 
     @Value("${guardian.key}")
     private String apiKey;
@@ -53,16 +56,33 @@ public class GuardianApiClient {
             "us-news",      "general"
     );
 
+    public GuardianApiClient(RestTemplate restTemplate,
+                             @Qualifier("fetchExecutor") ExecutorService fetchExecutor) {
+        this.restTemplate = restTemplate;
+        this.fetchExecutor = fetchExecutor;
+    }
+
+    /**
+     * Fetches all sections in parallel.
+     * Each section is fetched on the shared fetchExecutor thread pool.
+     * If one section fails, the others still return their results.
+     */
     public List<ArticleEvent> fetchAllSections() {
-        List<ArticleEvent> all = new ArrayList<>();
-        for (Map.Entry<String, String> entry : SECTION_TO_CATEGORY.entrySet()) {
-            try {
-                all.addAll(fetchBySection(entry.getKey(), entry.getValue()));
-            } catch (Exception e) {
-                log.error("Guardian API error for section [{}]: {}", entry.getKey(), e.getMessage());
-            }
-        }
-        return all;
+        List<CompletableFuture<List<ArticleEvent>>> futures = SECTION_TO_CATEGORY.entrySet()
+                .stream()
+                .map(entry -> CompletableFuture.supplyAsync(
+                        () -> fetchBySection(entry.getKey(), entry.getValue()), fetchExecutor)
+                        .exceptionally(ex -> {
+                            log.error("Guardian API error for section [{}]: {}",
+                                      entry.getKey(), ex.getMessage());
+                            return List.of();
+                        }))
+                .toList();
+
+        return futures.stream()
+                .map(CompletableFuture::join)
+                .flatMap(List::stream)
+                .toList();
     }
 
     @SuppressWarnings("unchecked")

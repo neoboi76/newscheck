@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Orchestrates the periodic news-fetching pipeline.
@@ -18,12 +19,12 @@ import java.util.List;
  * Schedule: every 15 minutes (configurable via aggregator.fetch.cron).
  *
  * Flow:
- *   NewsApiClient ──┐
+ *   NewsApiClient ──┐  (parallel)
  *                   ├──▶ ArticleService.ingest() ──▶ DB + Kafka
- *   GuardianClient──┘
+ *   GuardianClient──┘  (parallel)
  *
- * Each source runs sequentially to stay within API rate limits.
- * If one source fails, the others still run.
+ * Both sources and their internal category fetches run in parallel.
+ * If one source fails entirely, the other still contributes articles.
  */
 @Component
 @RequiredArgsConstructor
@@ -37,27 +38,34 @@ public class NewsFetcherScheduler {
     @Scheduled(cron = "${aggregator.fetch.cron:0 0/15 * * * *}")
     public void fetchAndPublish() {
         log.info("=== News fetch cycle starting ===");
-        List<ArticleEvent> allEvents = new ArrayList<>();
 
-        // ── NewsAPI.org ──────────────────────────────────────────────────────
-        try {
-            List<ArticleEvent> newsApiArticles = newsApiClient.fetchAllCategories();
-            allEvents.addAll(newsApiArticles);
-            log.info("NewsAPI fetched: {} articles", newsApiArticles.size());
-        } catch (Exception e) {
-            log.error("NewsAPI fetch failed: {}", e.getMessage(), e);
-        }
+        // Fetch from both sources in parallel
+        CompletableFuture<List<ArticleEvent>> newsApiFuture = CompletableFuture
+                .supplyAsync(newsApiClient::fetchAllCategories)
+                .exceptionally(ex -> {
+                    log.error("NewsAPI fetch failed: {}", ex.getMessage(), ex);
+                    return List.of();
+                });
 
-        // ── The Guardian ─────────────────────────────────────────────────────
-        try {
-            List<ArticleEvent> guardianArticles = guardianApiClient.fetchAllSections();
-            allEvents.addAll(guardianArticles);
-            log.info("Guardian fetched: {} articles", guardianArticles.size());
-        } catch (Exception e) {
-            log.error("Guardian fetch failed: {}", e.getMessage(), e);
-        }
+        CompletableFuture<List<ArticleEvent>> guardianFuture = CompletableFuture
+                .supplyAsync(guardianApiClient::fetchAllSections)
+                .exceptionally(ex -> {
+                    log.error("Guardian fetch failed: {}", ex.getMessage(), ex);
+                    return List.of();
+                });
 
-        // ── Ingest (deduplicate + persist + publish to Kafka) ─────────────────
+        // Wait for both to complete
+        List<ArticleEvent> newsApiArticles = newsApiFuture.join();
+        List<ArticleEvent> guardianArticles = guardianFuture.join();
+
+        log.info("NewsAPI fetched: {} articles", newsApiArticles.size());
+        log.info("Guardian fetched: {} articles", guardianArticles.size());
+
+        List<ArticleEvent> allEvents = new ArrayList<>(newsApiArticles.size() + guardianArticles.size());
+        allEvents.addAll(newsApiArticles);
+        allEvents.addAll(guardianArticles);
+
+        // Ingest (deduplicate + persist + publish to Kafka)
         int ingested = articleService.ingest(allEvents);
         log.info("=== News fetch cycle complete: {}/{} new articles ingested ===",
                  ingested, allEvents.size());

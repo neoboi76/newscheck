@@ -4,6 +4,7 @@ import com.newscheck.aggregator.dto.ArticleEvent;
 import com.newscheck.aggregator.entity.NewsCategory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -12,8 +13,11 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Fetches articles from NewsAPI.org.
@@ -22,11 +26,11 @@ import java.util.Map;
  * Endpoint used: GET /v2/top-headlines?category={category}&apiKey={key}
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class NewsApiClient {
 
     private final RestTemplate restTemplate;
+    private final ExecutorService fetchExecutor;
 
     @Value("${newsapi.key}")
     private String apiKey;
@@ -39,16 +43,31 @@ public class NewsApiClient {
         "entertainment", "health", "science"
     };
 
+    public NewsApiClient(RestTemplate restTemplate,
+                         @Qualifier("fetchExecutor") ExecutorService fetchExecutor) {
+        this.restTemplate = restTemplate;
+        this.fetchExecutor = fetchExecutor;
+    }
+
+    /**
+     * Fetches all categories in parallel.
+     * Each category is fetched on the shared fetchExecutor thread pool.
+     * If one category fails, the others still return their results.
+     */
     public List<ArticleEvent> fetchAllCategories() {
-        List<ArticleEvent> all = new ArrayList<>();
-        for (String category : CATEGORIES) {
-            try {
-                all.addAll(fetchByCategory(category));
-            } catch (Exception e) {
-                log.error("NewsAPI error for category [{}]: {}", category, e.getMessage());
-            }
-        }
-        return all;
+        List<CompletableFuture<List<ArticleEvent>>> futures = Arrays.stream(CATEGORIES)
+                .map(category -> CompletableFuture.supplyAsync(
+                        () -> fetchByCategory(category), fetchExecutor)
+                        .exceptionally(ex -> {
+                            log.error("NewsAPI error for category [{}]: {}", category, ex.getMessage());
+                            return List.of();
+                        }))
+                .toList();
+
+        return futures.stream()
+                .map(CompletableFuture::join)
+                .flatMap(List::stream)
+                .toList();
     }
 
     @SuppressWarnings("unchecked")
