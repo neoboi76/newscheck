@@ -1,9 +1,6 @@
 package com.newscheck.aggregator.entity;
 
-/**
- * Canonical set of news categories.
- * Each category maps directly to a Kafka topic name.
- */
+// Each category maps to a Kafka topic (news.<category>)
 public enum NewsCategory {
     GENERAL("general"),
     TECHNOLOGY("technology"),
@@ -25,7 +22,7 @@ public enum NewsCategory {
         return value;
     }
 
-    /** Kafka topic name for this category. Format: news.<category> */
+    /** Kafka topic name for this category. */
     public String toKafkaTopic() {
         return "news." + value;
     }

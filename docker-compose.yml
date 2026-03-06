@@ -1,9 +1,6 @@
 version: '3.8'
 
 services:
-  # ──────────────────────────────────────────────
-  # PostgreSQL Database
-  # ──────────────────────────────────────────────
   postgres:
     image: postgres:15-alpine
     container_name: newscheck-postgres
@@ -24,9 +21,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # ──────────────────────────────────────────────
-  # Zookeeper (Required by Kafka)
-  # ──────────────────────────────────────────────
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: newscheck-zookeeper
@@ -38,9 +32,6 @@ services:
     networks:
       - newscheck-network
 
-  # ──────────────────────────────────────────────
-  # Apache Kafka Broker
-  # ──────────────────────────────────────────────
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: newscheck-kafka
@@ -66,9 +57,6 @@ services:
       timeout: 10s
       retries: 5
 
-  # ──────────────────────────────────────────────
-  # Kafka UI (Optional – handy for debugging)
-  # ──────────────────────────────────────────────
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: newscheck-kafka-ui
@@ -82,9 +70,6 @@ services:
     networks:
       - newscheck-network
 
-  # ──────────────────────────────────────────────
-  # Aggregator Service
-  # ──────────────────────────────────────────────
   aggregator:
     build: ./aggregator
     container_name: newscheck-aggregator
@@ -106,9 +91,6 @@ services:
     networks:
       - newscheck-network
 
-  # ──────────────────────────────────────────────
-  # News Server Service
-  # ──────────────────────────────────────────────
   news-server:
     build: ./news-server
     container_name: newscheck-news-server

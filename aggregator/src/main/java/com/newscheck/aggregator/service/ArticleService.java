@@ -12,16 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Core aggregation logic: deduplication and persistence (SRP).
- *
- * Responsibilities (single reason to change):
- *   1. Validates and deduplicates incoming ArticleEvents against the DB.
- *   2. Persists new articles.
- *
- * Kafka publishing is delegated to {@link ArticlePublisher} so this
- * class has no dependency on messaging infrastructure.
- */
+// Deduplication + persistence (Kafka publishing delegated to ArticlePublisher)
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -30,31 +21,20 @@ public class ArticleService {
     private final ArticleRepository articleRepository;
     private final ArticlePublisher  articlePublisher;
 
-    /**
-     * Processes a batch of events:
-     *   - skips entries with blank externalId
-     *   - batch-deduplicates against DB (1 query instead of N)
-     *   - persists new articles
-     *   - delegates Kafka publishing to ArticlePublisher
-     *
-     * @return number of new articles ingested
-     */
     @Transactional
     public int ingest(List<ArticleEvent> events) {
-        // 1. Filter out events with blank externalId
         List<ArticleEvent> valid = events.stream()
                 .filter(e -> e.getExternalId() != null && !e.getExternalId().isBlank())
                 .toList();
 
         if (valid.isEmpty()) return 0;
 
-        // 2. Batch dedup: one query to find all existing externalIds
+        // Batch dedup: 1 query instead of N
         List<String> allExternalIds = valid.stream()
                 .map(ArticleEvent::getExternalId)
                 .toList();
         Set<String> existingIds = articleRepository.findExistingExternalIds(allExternalIds);
 
-        // 3. Persist only new articles
         List<ArticleEvent> newEvents = new ArrayList<>();
         for (ArticleEvent event : valid) {
             if (existingIds.contains(event.getExternalId())) {
@@ -67,7 +47,6 @@ public class ArticleService {
             newEvents.add(event);
         }
 
-        // 4. Publish all new articles to Kafka (delegated to ArticlePublisher)
         if (!newEvents.isEmpty()) {
             articlePublisher.publishAll(newEvents);
         }

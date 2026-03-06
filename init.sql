@@ -1,10 +1,9 @@
--- NewsCheck Database Initialization
--- This runs once when the PostgreSQL container first starts.
+-- NewsCheck DB init (runs once on first PostgreSQL container start)
 
--- Aggregator tables (owned by the Aggregator service)
+-- Articles table
 CREATE TABLE IF NOT EXISTS articles (
     id            BIGSERIAL PRIMARY KEY,
-    external_id   VARCHAR(512) UNIQUE NOT NULL,   -- URL or API-provided ID
+    external_id   VARCHAR(512) UNIQUE NOT NULL,
     title         TEXT          NOT NULL,
     description   TEXT,
     content       TEXT,
@@ -22,14 +21,13 @@ CREATE INDEX IF NOT EXISTS idx_articles_category      ON articles(category);
 CREATE INDEX IF NOT EXISTS idx_articles_published_at  ON articles(published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_articles_is_breaking   ON articles(is_breaking);
 
--- GIN index for full-text search on title + description
--- Uses english dictionary for stemming (e.g., "running" matches "run")
+-- Full-text search GIN index
 CREATE INDEX IF NOT EXISTS idx_articles_fts
     ON articles USING GIN (
         to_tsvector('english', COALESCE(title, '') || ' ' || COALESCE(description, ''))
     );
 
--- News-Server tables (owned by the News Server service)
+-- Users table
 CREATE TABLE IF NOT EXISTS users (
     id            BIGSERIAL PRIMARY KEY,
     username      VARCHAR(100) UNIQUE NOT NULL,
@@ -58,7 +56,7 @@ CREATE TABLE IF NOT EXISTS read_articles (
     PRIMARY KEY (user_id, article_id)
 );
 
--- Seed a test user (password: "password123" bcrypt hash)
+-- Seed test user (password: password123)
 INSERT INTO users (username, email, password_hash)
 VALUES ('testuser', 'test@newscheck.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lh7y')
 ON CONFLICT DO NOTHING;

@@ -5,10 +5,7 @@ import lombok.*;
 
 import java.time.Instant;
 
-/**
- * Persisted news article.
- * external_id is the canonical deduplication key (article URL or API-provided id).
- */
+// Persisted article (external_id = dedup key)
 @Entity
 @Table(name = "articles",
        uniqueConstraints = @UniqueConstraint(columnNames = "external_id"))

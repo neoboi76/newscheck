@@ -2,7 +2,6 @@ package com.newscheck.aggregator.service;
 
 import com.newscheck.aggregator.dto.ArticleEvent;
 import com.newscheck.aggregator.entity.NewsCategory;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,20 +17,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
-/**
- * Fetches articles from The Guardian Open Platform API.
- * Free tier: 500 requests/day, 200 results per page.
- * Endpoint: GET /search?section={section}&api-key={key}
- *
- * Guardian sections → NewsCheck categories mapping:
- *   technology  → technology
- *   sport       → sports
- *   business    → business
- *   film,music  → entertainment
- *   science     → science
- *   politics    → politics
- *   world       → general
- */
+// Fetches articles from The Guardian API
 @Service
 @Slf4j
 public class GuardianApiClient implements NewsSourceClient {
@@ -72,11 +58,7 @@ public class GuardianApiClient implements NewsSourceClient {
         return fetchAllSections();
     }
 
-    /**
-     * Fetches all sections in parallel.
-     * Each section is fetched on the shared fetchExecutor thread pool.
-     * If one section fails, the others still return their results.
-     */
+    // Fetches all sections in parallel
     public List<ArticleEvent> fetchAllSections() {
         List<CompletableFuture<List<ArticleEvent>>> futures = SECTION_TO_CATEGORY.entrySet()
                 .stream()

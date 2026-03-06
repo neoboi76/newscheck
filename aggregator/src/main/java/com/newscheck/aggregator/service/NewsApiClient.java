@@ -2,7 +2,6 @@ package com.newscheck.aggregator.service;
 
 import com.newscheck.aggregator.dto.ArticleEvent;
 import com.newscheck.aggregator.entity.NewsCategory;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,12 +18,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
-/**
- * Fetches articles from NewsAPI.org.
- *
- * Free tier limits: 100 requests/day, results limited to last 30 days.
- * Endpoint used: GET /v2/top-headlines?category={category}&apiKey={key}
- */
+// Fetches articles from NewsAPI.org
 @Service
 @Slf4j
 public class NewsApiClient implements NewsSourceClient {
@@ -59,11 +53,7 @@ public class NewsApiClient implements NewsSourceClient {
         return fetchAllCategories();
     }
 
-    /**
-     * Fetches all categories in parallel.
-     * Each category is fetched on the shared fetchExecutor thread pool.
-     * If one category fails, the others still return their results.
-     */
+    // Fetches all categories in parallel
     public List<ArticleEvent> fetchAllCategories() {
         List<CompletableFuture<List<ArticleEvent>>> futures = Arrays.stream(CATEGORIES)
                 .map(category -> CompletableFuture.supplyAsync(
@@ -126,7 +116,7 @@ public class NewsApiClient implements NewsSourceClient {
         boolean breaking = title != null && title.toLowerCase().contains("breaking");
 
         return ArticleEvent.builder()
-                .externalId(articleUrl)                         // URL is the unique key
+                .externalId(articleUrl)
                 .title(title)
                 .description((String) raw.get("description"))
                 .content((String) raw.get("content"))

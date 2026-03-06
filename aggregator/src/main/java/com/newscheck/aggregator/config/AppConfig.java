@@ -20,11 +20,7 @@ public class AppConfig {
         return new RestTemplate(factory);
     }
 
-    /**
-     * Bounded thread pool for parallel news API fetches.
-     * 4 threads is enough to saturate network I/O without overwhelming
-     * external API rate limits.
-     */
+    // Thread pool for parallel news API fetches
     @Bean(name = "fetchExecutor")
     public ExecutorService fetchExecutor() {
         return Executors.newFixedThreadPool(4);

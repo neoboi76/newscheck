@@ -10,17 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
-/**
- * Servlet filter that protects all /internal/** endpoints with a static API key.
- *
- * Requests must include the header:
- *     X-API-Key: <aggregator.api-key>
- *
- * If the key is not configured (blank), the filter rejects ALL /internal requests
- * with 503 Service Unavailable to prevent accidental open access.
- *
- * Non-/internal requests (e.g., /actuator/health) pass through untouched.
- */
+// Protects /internal/** endpoints with X-API-Key header
 @Component
 @Order(1)
 @Slf4j
@@ -46,7 +36,7 @@ public class ApiKeyAuthFilter implements Filter {
             return;
         }
 
-        // If no API key is configured, reject with 503 (fail-closed)
+        // No API key configured → fail-closed
         if (configuredApiKey == null || configuredApiKey.isBlank()) {
             log.warn("Rejected request to {} – aggregator.api-key is not configured", path);
             httpResp.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
@@ -57,7 +47,7 @@ public class ApiKeyAuthFilter implements Filter {
             return;
         }
 
-        // Validate the provided key
+        // Validate key
         String providedKey = httpReq.getHeader(API_KEY_HEADER);
         if (providedKey == null || !providedKey.equals(configuredApiKey)) {
             log.warn("Rejected request to {} – invalid or missing API key", path);
