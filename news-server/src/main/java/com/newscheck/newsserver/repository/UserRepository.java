@@ -20,10 +20,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByEmail(String email);
 
-    /**
-     * Find all users subscribed to a given category and who have an FCM token.
-     * Used by the notification service.
-     */
+    // Users subscribed to category with valid FCM token
     @Query("SELECT DISTINCT u FROM User u JOIN u.subscriptions s " +
            "WHERE s.category = :category AND u.fcmToken IS NOT NULL AND u.fcmToken <> ''")
     List<User> findSubscribersWithFcmToken(@Param("category") String category);

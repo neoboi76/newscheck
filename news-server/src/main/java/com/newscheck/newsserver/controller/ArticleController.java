@@ -13,24 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Article feed endpoints consumed by the Android app.
- *
- * All endpoints are public except the /feed and /mark-read endpoints
- * which require a valid JWT (Bearer token in Authorization header).
- *
- * ┌─────────────────────────────────────────────────────────────────────┐
- * │ Endpoint                        │ Auth │ Description               │
- * ├─────────────────────────────────────────────────────────────────────┤
- * │ GET /api/articles               │ No   │ Latest articles (paged)   │
- * │ GET /api/articles/feed          │ Yes  │ Personalised feed         │
- * │ GET /api/articles/breaking      │ No   │ Breaking news top-10      │
- * │ GET /api/articles/category/{c}  │ No   │ Articles by category      │
- * │ GET /api/articles/search        │ No   │ Full-text search          │
- * │ GET /api/articles/{id}          │ No   │ Single article detail     │
- * │ POST /api/articles/{id}/read    │ Yes  │ Mark article as read      │
- * └─────────────────────────────────────────────────────────────────────┘
- */
+// Article feed endpoints (public GET + authenticated feed/mark-read)
 @RestController
 @RequestMapping("/api/articles")
 @RequiredArgsConstructor
@@ -39,7 +22,6 @@ public class ArticleController {
     private final ArticleService           articleService;
     private final AuthenticatedUserResolver userResolver;
 
-    /** Latest articles across all categories (for unauthenticated / explore view). */
     @GetMapping
     public ResponseEntity<Page<ArticleResponse>> getAll(
             @RequestParam(defaultValue = "0")  int page,
@@ -48,7 +30,6 @@ public class ArticleController {
                 articleService.getFeed(null, page, size));
     }
 
-    /** Personalised feed: articles in subscribed categories the user hasn't read. */
     @GetMapping("/feed")
     public ResponseEntity<Page<ArticleResponse>> getFeed(
             @AuthenticationPrincipal UserDetails principal,
@@ -63,7 +44,6 @@ public class ArticleController {
                 articleService.getFeed(userId, page, size));
     }
 
-    /** Breaking news (top 10). */
     @GetMapping("/breaking")
     public ResponseEntity<List<ArticleResponse>> getBreaking(
             @AuthenticationPrincipal UserDetails principal) {
@@ -71,7 +51,6 @@ public class ArticleController {
                 articleService.getBreakingNews(userResolver.resolveId(principal)));
     }
 
-    /** Articles by category. */
     @GetMapping("/category/{category}")
     public ResponseEntity<Page<ArticleResponse>> getByCategory(
             @PathVariable String category,
@@ -82,7 +61,6 @@ public class ArticleController {
                 articleService.getByCategory(category, userResolver.resolveId(principal), page, size));
     }
 
-    /** Full-text search. */
     @GetMapping("/search")
     public ResponseEntity<Page<ArticleResponse>> search(
             @RequestParam String q,
@@ -93,7 +71,6 @@ public class ArticleController {
                 articleService.search(q, userResolver.resolveId(principal), page, size));
     }
 
-    /** Single article detail (includes full content). */
     @GetMapping("/{id}")
     public ResponseEntity<ArticleResponse> getById(
             @PathVariable Long id,
@@ -102,7 +79,6 @@ public class ArticleController {
                 articleService.getById(id, userResolver.resolveId(principal)));
     }
 
-    /** Mark article as read (requires auth). */
     @PostMapping("/{id}/read")
     public ResponseEntity<Map<String, String>> markRead(
             @PathVariable Long id,

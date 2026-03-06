@@ -3,10 +3,7 @@ package com.newscheck.newsserver.exception;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
-/**
- * Thrown when a requested resource does not exist.
- * Mapped to HTTP 404 by GlobalExceptionHandler.
- */
+// HTTP 404
 @ResponseStatus(HttpStatus.NOT_FOUND)
 public class ResourceNotFoundException extends RuntimeException {
 

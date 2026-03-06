@@ -13,20 +13,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * In-memory rate limiter for authentication endpoints.
- *
- * Uses a simple token-bucket algorithm per client IP:
- *   - Each IP gets {@code max-requests} tokens per {@code window-seconds} window.
- *   - When tokens are exhausted, requests are rejected with 429 Too Many Requests.
- *   - Tokens refill completely when the window expires.
- *
- * Only applies to POST /api/auth/** (login + register).
- * All other endpoints pass through unaffected.
- *
- * This prevents brute-force password guessing without requiring
- * an external cache like Redis.
- */
+// Token-bucket rate limiter for POST /api/auth/** (per client IP)
 @Component
 @Order(1)
 @Slf4j
@@ -47,7 +34,6 @@ public class RateLimitFilter implements Filter {
         HttpServletRequest  httpReq  = (HttpServletRequest) request;
         HttpServletResponse httpResp = (HttpServletResponse) response;
 
-        // Only rate-limit auth endpoints
         String path   = httpReq.getRequestURI();
         String method = httpReq.getMethod();
         if (!(path.startsWith("/api/auth") && "POST".equalsIgnoreCase(method))) {
@@ -72,7 +58,6 @@ public class RateLimitFilter implements Filter {
     }
 
     private String getClientIp(HttpServletRequest request) {
-        // Support reverse-proxy X-Forwarded-For header
         String xff = request.getHeader("X-Forwarded-For");
         if (xff != null && !xff.isBlank()) {
             return xff.split(",")[0].trim();
@@ -80,10 +65,7 @@ public class RateLimitFilter implements Filter {
         return request.getRemoteAddr();
     }
 
-    /**
-     * Simple token-bucket: tracks remaining tokens and window expiry per client.
-     * Thread-safe via synchronized methods (low contention — only auth endpoints).
-     */
+    // Token bucket per client IP
     private static class ClientBucket {
         private final AtomicLong windowStart = new AtomicLong(0);
         private int remaining = 0;

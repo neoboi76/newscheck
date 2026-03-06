@@ -21,11 +21,7 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
     @Query("SELECT a FROM Article a WHERE a.breaking = true ORDER BY a.publishedAt DESC")
     List<Article> findBreakingNews(Pageable pageable);
 
-    /**
-     * Full-text search using PostgreSQL tsvector/tsquery with GIN index.
-     * Supports stemming (e.g., "running" matches "run") and ranking.
-     * Falls back to LIKE for single-character queries where FTS is ineffective.
-     */
+    // Full-text search via PostgreSQL GIN index
     @Query(value = "SELECT * FROM articles " +
            "WHERE to_tsvector('english', COALESCE(title, '') || ' ' || COALESCE(description, '')) " +
            "    @@ plainto_tsquery('english', :q) " +
@@ -38,7 +34,7 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
 
     Optional<Article> findByExternalId(String externalId);
 
-    /** Articles the user has NOT read yet in their subscribed categories. */
+    // Unread articles in user's subscribed categories
     @Query("SELECT a FROM Article a WHERE a.category IN :categories " +
            "AND a.id NOT IN (SELECT r.articleId FROM ReadArticle r WHERE r.userId = :userId) " +
            "ORDER BY a.publishedAt DESC")

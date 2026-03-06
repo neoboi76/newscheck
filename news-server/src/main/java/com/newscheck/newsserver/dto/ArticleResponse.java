@@ -4,11 +4,7 @@ import lombok.*;
 
 import java.time.Instant;
 
-/**
- * The article shape returned to the Android app.
- * Does not include the full article content to keep payload small –
- * clients fetch the full article via the /articles/{id} endpoint.
- */
+// Article shape returned to the Android app
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -24,5 +20,5 @@ public class ArticleResponse {
     private String  category;
     private Instant publishedAt;
     private boolean breaking;
-    private boolean read;   // per-user, populated by ArticleService
+    private boolean read;
 }

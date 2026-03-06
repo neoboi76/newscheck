@@ -11,17 +11,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
-/**
- * Handles JWT creation and validation.
- *
- * Token structure:
- *   header.payload.signature
- *
- * Payload claims:
- *   sub  = username
- *   iat  = issued-at (epoch ms)
- *   exp  = expiry    (epoch ms, default 24 h)
- */
+// JWT creation and validation (HMAC-SHA256)
 @Component
 @Slf4j
 public class JwtUtils {
@@ -33,7 +23,6 @@ public class JwtUtils {
     private long jwtExpirationMs;
 
     private SecretKey getSigningKey() {
-        // Pad/hash the secret to meet HMAC-SHA256 key length requirements
         byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
     }

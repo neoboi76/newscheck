@@ -15,19 +15,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-/**
- * User profile and subscription management.
- *
- * ┌────────────────────────────────────────────────────────────┐
- * │ Endpoint                          │ Description            │
- * ├────────────────────────────────────────────────────────────┤
- * │ GET  /api/users/me                │ Get current user       │
- * │ PUT  /api/users/me/fcm-token      │ Update FCM token       │
- * │ GET  /api/users/me/subscriptions  │ List subscriptions     │
- * │ POST /api/users/me/subscriptions  │ Subscribe to category  │
- * │ DELETE /api/users/me/subs/{cat}   │ Unsubscribe            │
- * └────────────────────────────────────────────────────────────┘
- */
+// User profile + subscription management (all authenticated)
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -100,7 +88,6 @@ public class UserController {
         return ResponseEntity.ok(Map.of("status", "unsubscribed", "category", category));
     }
 
-    // ── inner DTOs ────────────────────────────────────────────────────────────
 
     @Data @NoArgsConstructor @AllArgsConstructor
     public static class FcmTokenRequest {

@@ -14,12 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 
-/**
- * Authentication endpoints.
- *
- * POST /api/auth/register  → creates account, returns JWT
- * POST /api/auth/login     → validates credentials, returns JWT
- */
+// Register + Login endpoints → returns JWT
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -37,7 +32,6 @@ public class AuthController {
                                           req.getEmail(),
                                           req.getPassword());
 
-        // Auto-login after registration
         UserDetails userDetails = org.springframework.security.core.userdetails
                 .User.withUsername(user.getUsername())
                      .password(user.getPasswordHash())

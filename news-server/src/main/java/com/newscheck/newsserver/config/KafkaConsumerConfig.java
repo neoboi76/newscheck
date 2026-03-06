@@ -16,8 +16,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Configures the Kafka consumer factory with manual ACK mode and
- * JSON deserialization of ArticleEvent payloads.
+ * Kafka consumer with manual ACK and JSON deserialization.
  */
 @Configuration
 public class KafkaConsumerConfig {
@@ -45,7 +44,6 @@ public class KafkaConsumerConfig {
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-        // Allow up to 3 simultaneous partitions per listener thread
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 50);
 
         return new DefaultKafkaConsumerFactory<>(props,
@@ -59,12 +57,8 @@ public class KafkaConsumerConfig {
         ConcurrentKafkaListenerContainerFactory<String, ArticleEvent> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
-
-        // MANUAL_IMMEDIATE: we call ack.acknowledge() ourselves in the listener
         factory.getContainerProperties()
                 .setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
-
-        // Run 3 listener threads (one per partition by default)
         factory.setConcurrency(3);
 
         return factory;

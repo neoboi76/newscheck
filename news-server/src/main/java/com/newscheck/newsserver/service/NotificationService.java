@@ -18,28 +18,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Sends Firebase Cloud Messaging (FCM) push notifications to Android devices
- * using the <b>FCM v1 API</b> via the Firebase Admin SDK.
- *
- * HOW IT WORKS:
- * ──────────────────────────────────────────────────────────────────────────
- * 1. On startup, the service reads a Google service-account JSON file and
- *    initialises the Firebase Admin SDK. The SDK handles OAuth2 token
- *    generation and refresh automatically.
- * 2. When a Kafka article event arrives, the service looks up all users
- *    subscribed to that article's category who have an FCM device token.
- * 3. It sends one FCM message per device token via the Admin SDK.
- *    (FCM v1 does NOT support multicast "registration_ids" — the SDK's
- *     sendEach() helper sends individual messages in one HTTP batch.)
- * 4. FCM delivers the notification to the device even if the app is closed.
- *
- * CONFIGURATION:
- *   fcm.service-account-path  → path to the JSON file inside the container
- *   fcm.project-id            → Firebase project ID (from the JSON file)
- *
- * If the path is blank, push notifications are silently skipped (dev mode).
- */
+// FCM v1 push notifications via Firebase Admin SDK
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -55,10 +34,7 @@ public class NotificationService {
 
     private boolean fcmInitialised = false;
 
-    /**
-     * Initialise Firebase Admin SDK on startup.
-     * If the service-account JSON is not provided, FCM is disabled (dev mode).
-     */
+    // Init Firebase SDK on startup (skipped if no service-account configured)
     @PostConstruct
     public void init() {
         if (serviceAccountPath == null || serviceAccountPath.isBlank()) {
@@ -86,11 +62,7 @@ public class NotificationService {
         }
     }
 
-    /**
-     * Notifies all subscribers of an article event.
-     *
-     * @param event the newly published article
-     */
+    // Send push to all users subscribed to the article's category
     public void notifySubscribers(ArticleEvent event) {
         if (!fcmInitialised) {
             log.debug("FCM not initialised – skipping push notification for: {}",
@@ -110,12 +82,11 @@ public class NotificationService {
                 .map(User::getFcmToken)
                 .toList();
 
-        // Build one Message per token (FCM v1 requirement)
         List<Message> messages = tokens.stream()
                 .map(token -> buildMessage(token, event))
                 .toList();
 
-        // sendEach() sends up to 500 messages in a single HTTP batch
+        // sendEach() batches up to 500 messages per HTTP call
         for (int i = 0; i < messages.size(); i += 500) {
             List<Message> batch = messages.subList(i, Math.min(i + 500, messages.size()));
             sendBatch(batch);
@@ -129,7 +100,6 @@ public class NotificationService {
         String body = event.getDescription() != null ? event.getDescription() : "";
         String imageUrl = event.getImageUrl() != null ? event.getImageUrl() : null;
 
-        // Build the notification (shown in system tray)
         Notification.Builder notifBuilder = Notification.builder()
                 .setTitle(title)
                 .setBody(body);
@@ -137,14 +107,12 @@ public class NotificationService {
             notifBuilder.setImage(imageUrl);
         }
 
-        // Build Android-specific config (priority)
         AndroidConfig androidConfig = AndroidConfig.builder()
                 .setPriority(event.isBreaking()
                         ? AndroidConfig.Priority.HIGH
                         : AndroidConfig.Priority.NORMAL)
                 .build();
 
-        // Build the data payload (for deep-linking in the app)
         Map<String, String> data = Map.of(
                 "articleId", String.valueOf(event.getArticleId()),
                 "category",  event.getCategory(),
@@ -166,7 +134,6 @@ public class NotificationService {
             log.info("FCM batch: {} sent, {} failed",
                      response.getSuccessCount(), response.getFailureCount());
 
-            // Log individual failures for debugging
             if (response.getFailureCount() > 0) {
                 List<SendResponse> responses = response.getResponses();
                 for (int i = 0; i < responses.size(); i++) {

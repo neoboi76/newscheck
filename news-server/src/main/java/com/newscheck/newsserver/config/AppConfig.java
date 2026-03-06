@@ -17,7 +17,6 @@ public class AppConfig implements WebMvcConfigurer {
         return new RestTemplate();
     }
 
-    /** Allow the Android emulator (10.0.2.2) and local dev to hit the API. */
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
@@ -28,15 +27,9 @@ public class AppConfig implements WebMvcConfigurer {
                 .maxAge(3600);
     }
 
-    /**
-     * Add Cache-Control headers to public article GET endpoints.
-     * - Article listings/search: 60 seconds (news updates frequently)
-     * - Breaking news: 30 seconds (time-sensitive)
-     * Clients and CDNs can cache responses, reducing server load.
-     */
+    // Cache-Control headers for public article endpoints
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // Article listings, category, search — cache 60s
         WebContentInterceptor listingsCacheInterceptor = new WebContentInterceptor();
         listingsCacheInterceptor.setCacheControl(
                 CacheControl.maxAge(60, TimeUnit.SECONDS).cachePublic());
@@ -46,14 +39,12 @@ public class AppConfig implements WebMvcConfigurer {
                         "/api/articles/category/**",
                         "/api/articles/search");
 
-        // Breaking news — cache 30s (more time-sensitive)
         WebContentInterceptor breakingCacheInterceptor = new WebContentInterceptor();
         breakingCacheInterceptor.setCacheControl(
                 CacheControl.maxAge(30, TimeUnit.SECONDS).cachePublic());
         registry.addInterceptor(breakingCacheInterceptor)
                 .addPathPatterns("/api/articles/breaking");
 
-        // Single article detail — cache 5 min (article content doesn't change)
         WebContentInterceptor detailCacheInterceptor = new WebContentInterceptor();
         detailCacheInterceptor.setCacheControl(
                 CacheControl.maxAge(5, TimeUnit.MINUTES).cachePublic());

@@ -51,25 +51,15 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
-                        // ── Public: Auth endpoints ─────────────────────────
+                        // Public
                         .requestMatchers("/api/auth/**").permitAll()
-
-                        // ── Public: Read-only article endpoints (GET only) ─
                         .requestMatchers(HttpMethod.GET, "/api/articles").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/articles/breaking").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/articles/search").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/articles/category/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/articles/{id}").permitAll()
-
-                        // ── Public: Health check only ──────────────────────
                         .requestMatchers("/actuator/health").permitAll()
-
-                        // ── Everything else requires authentication ────────
-                        // This includes:
-                        //   POST /api/articles/{id}/read
-                        //   GET  /api/articles/feed
-                        //   All  /api/users/**
-                        //   GET  /actuator/info, /actuator/metrics
+                        // Authenticated
                         .anyRequest().authenticated()
                 )
 

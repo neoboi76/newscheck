@@ -15,11 +15,7 @@ public interface ReadArticleRepository
 
     boolean existsByUserIdAndArticleId(Long userId, Long articleId);
 
-    /**
-     * Batch lookup: returns the set of article IDs (from the given list)
-     * that the user has already read. Single SQL query replaces N individual
-     * existsBy calls (fixes N+1 problem).
-     */
+    // Batch read-status lookup (avoids N+1)
     @Query("SELECT r.articleId FROM ReadArticle r " +
            "WHERE r.userId = :userId AND r.articleId IN :articleIds")
     Set<Long> findReadArticleIds(@Param("userId") Long userId,

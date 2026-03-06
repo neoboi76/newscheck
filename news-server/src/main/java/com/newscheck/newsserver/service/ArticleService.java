@@ -37,7 +37,6 @@ public class ArticleService {
     public Page<ArticleResponse> getFeed(Long userId, int page, int size) {
         Pageable pageable = pageOf(page, size);
 
-        // Anonymous user → return general feed, no read-status needed
         if (userId == null) {
             return articleRepository
                     .findAllByOrderByPublishedAtDesc(pageable)
@@ -102,21 +101,15 @@ public class ArticleService {
         }
     }
 
-    // ── helpers ──────────────────────────────────────────────────────────────
+    // ── helpers ──
 
-    /**
-     * Batch-load read IDs for a page of articles, then map.
-     * 1 SQL query for the entire page instead of N individual queries.
-     */
+    // Batch-load read IDs, then map page
     private Page<ArticleResponse> toResponsePage(Page<Article> articles, Long userId) {
         Set<Long> readIds = getReadIds(userId, articles.getContent());
         return articles.map(a -> toResponse(a, readIds.contains(a.getId())));
     }
 
-    /**
-     * Single batch query: returns the set of article IDs the user has read.
-     * Returns empty set for anonymous users (userId == null).
-     */
+    // Returns empty set for anonymous users
     private Set<Long> getReadIds(Long userId, List<Article> articles) {
         if (userId == null || articles.isEmpty()) {
             return Collections.emptySet();
