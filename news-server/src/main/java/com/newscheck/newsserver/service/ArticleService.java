@@ -15,7 +15,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -34,44 +36,52 @@ public class ArticleService {
     @Transactional(readOnly = true)
     public Page<ArticleResponse> getFeed(Long userId, int page, int size) {
         Pageable pageable = pageOf(page, size);
+
+        // Anonymous user → return general feed, no read-status needed
+        if (userId == null) {
+            return articleRepository
+                    .findAllByOrderByPublishedAtDesc(pageable)
+                    .map(a -> toResponse(a, false));
+        }
+
         List<String> categories = subscriptionRepository.findByUserId(userId)
                 .stream()
                 .map(s -> s.getCategory())
                 .toList();
 
         if (categories.isEmpty()) {
-            // No subscriptions yet → return general feed
-            return articleRepository
-                    .findAllByOrderByPublishedAtDesc(pageable)
-                    .map(a -> toResponse(a, userId));
+            Page<Article> articles = articleRepository
+                    .findAllByOrderByPublishedAtDesc(pageable);
+            return toResponsePage(articles, userId);
         }
 
-        return articleRepository
-                .findUnreadForUser(userId, categories, pageable)
-                .map(a -> toResponse(a, userId));
+        Page<Article> articles = articleRepository
+                .findUnreadForUser(userId, categories, pageable);
+        return toResponsePage(articles, userId);
     }
 
     @Transactional(readOnly = true)
     public Page<ArticleResponse> getByCategory(String category, Long userId,
                                                 int page, int size) {
-        return articleRepository
-                .findByCategoryOrderByPublishedAtDesc(category, pageOf(page, size))
-                .map(a -> toResponse(a, userId));
+        Page<Article> articles = articleRepository
+                .findByCategoryOrderByPublishedAtDesc(category, pageOf(page, size));
+        return toResponsePage(articles, userId);
     }
 
     @Transactional(readOnly = true)
     public Page<ArticleResponse> search(String query, Long userId, int page, int size) {
-        return articleRepository
-                .search(query, pageOf(page, size))
-                .map(a -> toResponse(a, userId));
+        Page<Article> articles = articleRepository
+                .search(query, pageOf(page, size));
+        return toResponsePage(articles, userId);
     }
 
     @Transactional(readOnly = true)
     public List<ArticleResponse> getBreakingNews(Long userId) {
-        return articleRepository
-                .findBreakingNews(PageRequest.of(0, 10))
-                .stream()
-                .map(a -> toResponse(a, userId))
+        List<Article> articles = articleRepository
+                .findBreakingNews(PageRequest.of(0, 10));
+        Set<Long> readIds = getReadIds(userId, articles);
+        return articles.stream()
+                .map(a -> toResponse(a, readIds.contains(a.getId())))
                 .toList();
     }
 
@@ -79,7 +89,9 @@ public class ArticleService {
     public ArticleResponse getById(Long id, Long userId) {
         Article article = articleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Article", id));
-        return toResponse(article, userId);
+        boolean read = userId != null &&
+                readArticleRepository.existsByUserIdAndArticleId(userId, id);
+        return toResponse(article, read);
     }
 
     @Transactional
@@ -92,9 +104,28 @@ public class ArticleService {
 
     // ── helpers ──────────────────────────────────────────────────────────────
 
-    private ArticleResponse toResponse(Article a, Long userId) {
-        boolean read = userId != null &&
-                       readArticleRepository.existsByUserIdAndArticleId(userId, a.getId());
+    /**
+     * Batch-load read IDs for a page of articles, then map.
+     * 1 SQL query for the entire page instead of N individual queries.
+     */
+    private Page<ArticleResponse> toResponsePage(Page<Article> articles, Long userId) {
+        Set<Long> readIds = getReadIds(userId, articles.getContent());
+        return articles.map(a -> toResponse(a, readIds.contains(a.getId())));
+    }
+
+    /**
+     * Single batch query: returns the set of article IDs the user has read.
+     * Returns empty set for anonymous users (userId == null).
+     */
+    private Set<Long> getReadIds(Long userId, List<Article> articles) {
+        if (userId == null || articles.isEmpty()) {
+            return Collections.emptySet();
+        }
+        List<Long> articleIds = articles.stream().map(Article::getId).toList();
+        return readArticleRepository.findReadArticleIds(userId, articleIds);
+    }
+
+    private ArticleResponse toResponse(Article a, boolean read) {
         return ArticleResponse.builder()
                 .id(a.getId())
                 .title(a.getTitle())
