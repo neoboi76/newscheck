@@ -22,6 +22,13 @@ CREATE INDEX IF NOT EXISTS idx_articles_category      ON articles(category);
 CREATE INDEX IF NOT EXISTS idx_articles_published_at  ON articles(published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_articles_is_breaking   ON articles(is_breaking);
 
+-- GIN index for full-text search on title + description
+-- Uses english dictionary for stemming (e.g., "running" matches "run")
+CREATE INDEX IF NOT EXISTS idx_articles_fts
+    ON articles USING GIN (
+        to_tsvector('english', COALESCE(title, '') || ' ' || COALESCE(description, ''))
+    );
+
 -- News-Server tables (owned by the News Server service)
 CREATE TABLE IF NOT EXISTS users (
     id            BIGSERIAL PRIMARY KEY,
