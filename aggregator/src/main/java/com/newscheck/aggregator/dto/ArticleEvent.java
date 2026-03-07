@@ -5,13 +5,7 @@ import lombok.*;
 
 import java.time.Instant;
 
-/**
- * The object that is serialised to JSON and published onto a Kafka topic.
- * The News-Server (consumer) deserialises this same class.
- *
- * Keep this class stable – changing field names is a breaking change for
- * all consumers unless you handle schema evolution explicitly.
- */
+// Kafka message payload — must stay in sync with news-server's version
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Data
 @NoArgsConstructor

@@ -70,3 +70,5 @@ postgres_data/
 **/*.tmp
 **/*.bak
 **/*.swp
+
+firebase-service-account.json

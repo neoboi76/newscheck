@@ -28,7 +28,7 @@ public class User {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
-    /** Firebase Cloud Messaging token for push notifications. */
+    /** Firebase Cloud Messaging device token. */
     @Column(name = "fcm_token", length = 512)
     private String fcmToken;
 

@@ -1,9 +1,6 @@
 version: '3.8'
 
 services:
-  # ──────────────────────────────────────────────
-  # PostgreSQL Database
-  # ──────────────────────────────────────────────
   postgres:
     image: postgres:15-alpine
     container_name: newscheck-postgres
@@ -24,9 +21,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # ──────────────────────────────────────────────
-  # Zookeeper (Required by Kafka)
-  # ──────────────────────────────────────────────
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: newscheck-zookeeper
@@ -38,9 +32,6 @@ services:
     networks:
       - newscheck-network
 
-  # ──────────────────────────────────────────────
-  # Apache Kafka Broker
-  # ──────────────────────────────────────────────
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: newscheck-kafka
@@ -66,9 +57,6 @@ services:
       timeout: 10s
       retries: 5
 
-  # ──────────────────────────────────────────────
-  # Kafka UI (Optional – handy for debugging)
-  # ──────────────────────────────────────────────
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: newscheck-kafka-ui
@@ -82,9 +70,6 @@ services:
     networks:
       - newscheck-network
 
-  # ──────────────────────────────────────────────
-  # Aggregator Service
-  # ──────────────────────────────────────────────
   aggregator:
     build: ./aggregator
     container_name: newscheck-aggregator
@@ -102,12 +87,10 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       NEWS_API_KEY: ${NEWS_API_KEY}
       GUARDIAN_API_KEY: ${GUARDIAN_API_KEY}
+      AGGREGATOR_API_KEY: ${AGGREGATOR_API_KEY}
     networks:
       - newscheck-network
 
-  # ──────────────────────────────────────────────
-  # News Server Service
-  # ──────────────────────────────────────────────
   news-server:
     build: ./news-server
     container_name: newscheck-news-server
@@ -118,13 +101,16 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
+    volumes:
+      - ./firebase-service-account.json:/app/firebase-service-account.json:ro
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/newscheck
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: admin
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       JWT_SECRET: ${JWT_SECRET:-changeme_use_a_real_secret_in_production}
-      FCM_SERVER_KEY: ${FCM_SERVER_KEY}
+      FCM_SERVICE_ACCOUNT_PATH: /app/firebase-service-account.json
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID}
     networks:
       - newscheck-network
 

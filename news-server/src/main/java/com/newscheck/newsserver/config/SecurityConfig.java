@@ -5,6 +5,7 @@ import com.newscheck.newsserver.service.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -32,7 +33,6 @@ public class SecurityConfig {
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
-        // Spring Security 6.x: UserDetailsService is passed via constructor
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
         return provider;
@@ -47,19 +47,19 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                // Stateless API – no CSRF needed
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints
-                        .requestMatchers(
-                                "/api/auth/**",
-                                "/api/articles",
-                                "/api/articles/**",
-                                "/actuator/health"
-                        ).permitAll()
-                        // Everything else requires authentication
+                        // Public
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/articles").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/articles/breaking").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/articles/search").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/articles/category/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/articles/{id}").permitAll()
+                        .requestMatchers("/actuator/health").permitAll()
+                        // Authenticated
                         .anyRequest().authenticated()
                 )
 

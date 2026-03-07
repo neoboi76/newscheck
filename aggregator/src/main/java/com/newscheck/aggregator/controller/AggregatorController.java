@@ -13,12 +13,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Internal REST endpoints for the Aggregator.
- * Not exposed to the Android app – only used for admin/debugging.
- *
- * In production, lock these down behind a firewall or basic auth.
- */
+// Internal admin/debug endpoints (protected by ApiKeyAuthFilter)
 @RestController
 @RequestMapping("/internal")
 @RequiredArgsConstructor
@@ -28,7 +23,6 @@ public class AggregatorController {
     private final ArticleRepository     articleRepository;
     private final NewsFetcherScheduler  scheduler;
 
-    /** Manually trigger a fetch cycle (useful for testing). */
     @PostMapping("/fetch")
     public ResponseEntity<Map<String, String>> triggerFetch() {
         try {
@@ -48,7 +42,6 @@ public class AggregatorController {
         return articleRepository.findRecentArticles(since);
     }
 
-    /** Total article count. */
     @GetMapping("/articles/count")
     public ResponseEntity<Map<String, Long>> count() {
         return ResponseEntity.ok(Map.of("total", articleRepository.count()));

@@ -2,8 +2,8 @@ package com.newscheck.aggregator.service;
 
 import com.newscheck.aggregator.dto.ArticleEvent;
 import com.newscheck.aggregator.entity.NewsCategory;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -14,27 +14,16 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
-/**
- * Fetches articles from The Guardian Open Platform API.
- * Free tier: 500 requests/day, 200 results per page.
- * Endpoint: GET /search?section={section}&api-key={key}
- *
- * Guardian sections → NewsCheck categories mapping:
- *   technology  → technology
- *   sport       → sports
- *   business    → business
- *   film,music  → entertainment
- *   science     → science
- *   politics    → politics
- *   world       → general
- */
+// Fetches articles from The Guardian API
 @Service
-@RequiredArgsConstructor
 @Slf4j
-public class GuardianApiClient {
+public class GuardianApiClient implements NewsSourceClient {
 
     private final RestTemplate restTemplate;
+    private final ExecutorService fetchExecutor;
 
     @Value("${guardian.key}")
     private String apiKey;
@@ -53,16 +42,39 @@ public class GuardianApiClient {
             "us-news",      "general"
     );
 
+    public GuardianApiClient(RestTemplate restTemplate,
+                             @Qualifier("fetchExecutor") ExecutorService fetchExecutor) {
+        this.restTemplate = restTemplate;
+        this.fetchExecutor = fetchExecutor;
+    }
+
+    @Override
+    public String getSourceName() {
+        return "The Guardian";
+    }
+
+    @Override
+    public List<ArticleEvent> fetchAll() {
+        return fetchAllSections();
+    }
+
+    // Fetches all sections in parallel
     public List<ArticleEvent> fetchAllSections() {
-        List<ArticleEvent> all = new ArrayList<>();
-        for (Map.Entry<String, String> entry : SECTION_TO_CATEGORY.entrySet()) {
-            try {
-                all.addAll(fetchBySection(entry.getKey(), entry.getValue()));
-            } catch (Exception e) {
-                log.error("Guardian API error for section [{}]: {}", entry.getKey(), e.getMessage());
-            }
-        }
-        return all;
+        List<CompletableFuture<List<ArticleEvent>>> futures = SECTION_TO_CATEGORY.entrySet()
+                .stream()
+                .map(entry -> CompletableFuture.supplyAsync(
+                        () -> fetchBySection(entry.getKey(), entry.getValue()), fetchExecutor)
+                        .exceptionally(ex -> {
+                            log.error("Guardian API error for section [{}]: {}",
+                                      entry.getKey(), ex.getMessage());
+                            return List.of();
+                        }))
+                .toList();
+
+        return futures.stream()
+                .map(CompletableFuture::join)
+                .flatMap(List::stream)
+                .toList();
     }
 
     @SuppressWarnings("unchecked")

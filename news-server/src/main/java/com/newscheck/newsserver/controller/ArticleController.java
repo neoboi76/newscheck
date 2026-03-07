@@ -1,9 +1,8 @@
 package com.newscheck.newsserver.controller;
 
 import com.newscheck.newsserver.dto.ArticleResponse;
-import com.newscheck.newsserver.entity.User;
+import com.newscheck.newsserver.security.AuthenticatedUserResolver;
 import com.newscheck.newsserver.service.ArticleService;
-import com.newscheck.newsserver.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -14,33 +13,15 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Article feed endpoints consumed by the Android app.
- *
- * All endpoints are public except the /feed and /mark-read endpoints
- * which require a valid JWT (Bearer token in Authorization header).
- *
- * ┌─────────────────────────────────────────────────────────────────────┐
- * │ Endpoint                        │ Auth │ Description               │
- * ├─────────────────────────────────────────────────────────────────────┤
- * │ GET /api/articles               │ No   │ Latest articles (paged)   │
- * │ GET /api/articles/feed          │ Yes  │ Personalised feed         │
- * │ GET /api/articles/breaking      │ No   │ Breaking news top-10      │
- * │ GET /api/articles/category/{c}  │ No   │ Articles by category      │
- * │ GET /api/articles/search        │ No   │ Full-text search          │
- * │ GET /api/articles/{id}          │ No   │ Single article detail     │
- * │ POST /api/articles/{id}/read    │ Yes  │ Mark article as read      │
- * └─────────────────────────────────────────────────────────────────────┘
- */
+// Article feed endpoints (public GET + authenticated feed/mark-read)
 @RestController
 @RequestMapping("/api/articles")
 @RequiredArgsConstructor
 public class ArticleController {
 
-    private final ArticleService articleService;
-    private final UserService    userService;
+    private final ArticleService           articleService;
+    private final AuthenticatedUserResolver userResolver;
 
-    /** Latest articles across all categories (for unauthenticated / explore view). */
     @GetMapping
     public ResponseEntity<Page<ArticleResponse>> getAll(
             @RequestParam(defaultValue = "0")  int page,
@@ -49,80 +30,62 @@ public class ArticleController {
                 articleService.getFeed(null, page, size));
     }
 
-    /** Personalised feed: articles in subscribed categories the user hasn't read. */
     @GetMapping("/feed")
     public ResponseEntity<Page<ArticleResponse>> getFeed(
             @AuthenticationPrincipal UserDetails principal,
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "20") int size) {
 
-        if (principal == null) {
+        Long userId = userResolver.resolveId(principal);
+        if (userId == null) {
             return ResponseEntity.status(401).build();
         }
-        User user = userService.getByUsername(principal.getUsername());
         return ResponseEntity.ok(
-                articleService.getFeed(user.getId(), page, size));
+                articleService.getFeed(userId, page, size));
     }
 
-    /** Breaking news (top 10). */
     @GetMapping("/breaking")
     public ResponseEntity<List<ArticleResponse>> getBreaking(
             @AuthenticationPrincipal UserDetails principal) {
-        Long userId = principal != null
-                ? userService.getByUsername(principal.getUsername()).getId()
-                : null;
-        return ResponseEntity.ok(articleService.getBreakingNews(userId));
+        return ResponseEntity.ok(
+                articleService.getBreakingNews(userResolver.resolveId(principal)));
     }
 
-    /** Articles by category. */
     @GetMapping("/category/{category}")
     public ResponseEntity<Page<ArticleResponse>> getByCategory(
             @PathVariable String category,
             @AuthenticationPrincipal UserDetails principal,
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "20") int size) {
-
-        Long userId = principal != null
-                ? userService.getByUsername(principal.getUsername()).getId()
-                : null;
         return ResponseEntity.ok(
-                articleService.getByCategory(category, userId, page, size));
+                articleService.getByCategory(category, userResolver.resolveId(principal), page, size));
     }
 
-    /** Full-text search. */
     @GetMapping("/search")
     public ResponseEntity<Page<ArticleResponse>> search(
             @RequestParam String q,
             @AuthenticationPrincipal UserDetails principal,
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "20") int size) {
-
-        Long userId = principal != null
-                ? userService.getByUsername(principal.getUsername()).getId()
-                : null;
-        return ResponseEntity.ok(articleService.search(q, userId, page, size));
+        return ResponseEntity.ok(
+                articleService.search(q, userResolver.resolveId(principal), page, size));
     }
 
-    /** Single article detail (includes full content). */
     @GetMapping("/{id}")
     public ResponseEntity<ArticleResponse> getById(
             @PathVariable Long id,
             @AuthenticationPrincipal UserDetails principal) {
-
-        Long userId = principal != null
-                ? userService.getByUsername(principal.getUsername()).getId()
-                : null;
-        return ResponseEntity.ok(articleService.getById(id, userId));
+        return ResponseEntity.ok(
+                articleService.getById(id, userResolver.resolveId(principal)));
     }
 
-    /** Mark article as read (requires auth). */
     @PostMapping("/{id}/read")
     public ResponseEntity<Map<String, String>> markRead(
             @PathVariable Long id,
             @AuthenticationPrincipal UserDetails principal) {
 
-        User user = userService.getByUsername(principal.getUsername());
-        articleService.markRead(user.getId(), id);
+        Long userId = userResolver.resolveId(principal);
+        articleService.markRead(userId, id);
         return ResponseEntity.ok(Map.of("status", "marked as read"));
     }
 }

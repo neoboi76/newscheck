@@ -5,11 +5,7 @@ import lombok.*;
 
 import java.time.Instant;
 
-/**
- * Read-only JPA mapping of the articles table (written by the Aggregator).
- * The News-Server never directly inserts into this table – it only reads.
- * Articles arrive via Kafka events; the entity is used for REST feed queries.
- */
+// Read-only JPA mapping of articles table (written by Aggregator)
 @Entity
 @Table(name = "articles")
 @Getter @Setter

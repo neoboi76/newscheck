@@ -4,11 +4,7 @@ import jakarta.validation.constraints.*;
 import lombok.*;
 
 import java.time.Instant;
-import java.util.List;
 
-// ────────────────────────────────────────────────────────────────────────────
-// Auth
-// ────────────────────────────────────────────────────────────────────────────
 
 public class AuthDtos {
 
@@ -31,7 +27,7 @@ public class AuthDtos {
     @Data @NoArgsConstructor @AllArgsConstructor @Builder
     public static class TokenResponse {
         private String  token;
-        private String  tokenType;   // "Bearer"
+        private String  tokenType;
         private Long    userId;
         private String  username;
         private String  email;
@@ -39,28 +35,3 @@ public class AuthDtos {
     }
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// User
-// ────────────────────────────────────────────────────────────────────────────
-
-class UserDtos {
-
-    @Data @NoArgsConstructor @AllArgsConstructor @Builder
-    public static class UserResponse {
-        private Long         id;
-        private String       username;
-        private String       email;
-        private List<String> subscriptions;
-        private Instant      createdAt;
-    }
-
-    @Data @NoArgsConstructor @AllArgsConstructor
-    public static class UpdateFcmTokenRequest {
-        @NotBlank private String fcmToken;
-    }
-
-    @Data @NoArgsConstructor @AllArgsConstructor
-    public static class SubscribeRequest {
-        @NotBlank private String category;
-    }
-}
