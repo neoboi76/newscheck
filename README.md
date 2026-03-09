@@ -18,6 +18,4 @@
 ---
 
 ## Optional: Enable FCM Push Notifications
-1. Go to [Firebase Console](https://console.firebase.google.com) → project **newscheck-3dd55**
-2. Download `google-services.json` → place it in `app/` folder
-3. Follow FCM setup instructions in the code comments
+See [FCM_SETUP.md](FCM_SETUP.md) for setup instructions.
