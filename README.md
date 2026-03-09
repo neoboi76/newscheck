@@ -1,5 +1,4 @@
 # NewsCheck Android App
-**Developer:** Jhun Lawrence Del Rosario
 
 ## Run the App
 1. Clone and checkout this branch:
