@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NewsCheck</string>
+    <string name="login">Login</string>
+    <string name="register">Register</string>
+    <string name="username">Username</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="confirm_password">Confirm Password</string>
+    <string name="feed">Feed</string>
+    <string name="categories">Categories</string>
+    <string name="profile">Profile</string>
+    <string name="breaking_news">Breaking News</string>
+    <string name="no_results">No articles found</string>
+    <string name="continue_as_guest">Continue as guest</string>
+    <string name="dont_have_account">Don\'t have an account? Register</string>
+    <string name="already_have_account">Already have an account? Login</string>
+    <string name="read_full_article">Read Full Article</string>
+    <string name="share">Share</string>
+    <string name="logout">Logout</string>
+    <string name="not_logged_in">You are not logged in</string>
+    <string name="long_press_to_subscribe">Long press a category to subscribe/unsubscribe</string>
+</resources>
