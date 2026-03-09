@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Core Palette -->
+    <color name="background_dark">#0A0A0A</color>
+    <color name="surface_dark">#141414</color>
+    <color name="surface_elevated">#1E1E1E</color>
+    <color name="card_background">#1A1A1A</color>
+
+    <!-- Green Accent -->
+    <color name="green_primary">#00C853</color>
+    <color name="green_dark">#009624</color>
+    <color name="green_light">#69F0AE</color>
+    <color name="green_dim">#1A2E1F</color>
+
+    <!-- Text -->
+    <color name="text_primary">#F5F5F5</color>
+    <color name="text_secondary">#9E9E9E</color>
+    <color name="text_disabled">#4A4A4A</color>
+    <color name="text_on_green">#000000</color>
+
+    <!-- Breaking -->
+    <color name="breaking_red">#FF1744</color>
+
+    <!-- Divider / stroke -->
+    <color name="divider">#2A2A2A</color>
+    <color name="stroke">#333333</color>
+
+    <!-- White variants -->
+    <color name="white">#FFFFFF</color>
+</resources>
