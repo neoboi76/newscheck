@@ -53,3 +53,6 @@
    </service>
 ```
 9. Rebuild and run!
+
+> ⚠️ **Note:** Without `google-services.json` the app will **fail to build** entirely.
+> Only add the FCM dependencies in `build.gradle` after placing the file in `app/` first.
